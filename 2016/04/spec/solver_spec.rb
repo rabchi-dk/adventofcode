@@ -44,4 +44,11 @@ RSpec.describe "solver" do
       expect(solver.calculate_checksum("abcdeffbcde")).to eq("[bcdef]")
     end
   end
+
+  context "decryption" do
+    it "decrypts an example" do
+      solver = Solver.new
+      expect(solver.decrypt("qzmt-zixmtkozy-ivhz", 343)).to eq("very encrypted name")
+    end
+  end
 end
