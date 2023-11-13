@@ -149,6 +149,10 @@ class TestingFacilityState
     @floors[lfiwi].collect.with_index { |row_item, index| row_item.nil? ? nil : index }.compact
   end
 
+  def number_of_items_on_floor(floor)
+    @floors[floor].reject { |item| item.nil? }.count
+  end
+
   def to_s
     "E#{elevator_floor}\n" + @floors.reverse.collect do |columns|
       columns.collect { |value| value.nil? ? "  ." : value.to_s }.join("  ")
@@ -179,8 +183,16 @@ class TestingFacilityMover
     # Return nil if elevator is not on same floor as items
     return nil if testing_facility_state.elevator_floor != item_location
 
+    destination_item_location = (item_location + action.steps)
+
+    # OPTIMIZATION: Return nil if lowest floor is empty and we would have moved something to lowest floor
+    return nil if destination_item_location == 0 && testing_facility_state.number_of_items_on_floor(0) == 0
+
+    # OPTIMIZATION: Return nil if trying to move something down to a floor (from a floor which is not the two top floors) when there's more than a third of items on the destination floor
+    return nil if action.steps < 0 && item_location >= (testing_facility_state.floor_indeces - 1) && testing_facility_state.number_of_items_on_floor(destination_item_location) >= (testing_facility_state.number_of_columns/3)
+
     # Return nil if we would have moved items to a floor that does not exist
-    return nil unless testing_facility_state.floor_exists?(item_location + action.steps)
+    return nil unless testing_facility_state.floor_exists?(destination_item_location)
 
     testing_facility_state_after_move = testing_facility_state.move_items(action.columns, action.steps)
 
@@ -196,6 +208,16 @@ class SolutionCandidate
     @previous_solution_candidate = previous_solution_candidate
   end
   attr_reader :testing_facility_state, :previous_solution_candidate
+
+  def testing_facility_states
+    solution_states = []
+    current_iteration = self
+    while !current_iteration.nil?
+      solution_states << current_iteration.testing_facility_state
+      current_iteration = current_iteration.previous_solution_candidate
+    end
+    solution_states.reverse
+  end
 end
 
 class Solver
@@ -276,7 +298,7 @@ end
 #
 # My challenge
 #
-testing_facility_state = TestingFacilityState.blank_testing_facility_state(4, 10)
+testing_facility_state = TestingFacilityState.blank_testing_facility_state(4, 14)
 testing_facility_state = testing_facility_state.put_generator(0, 0, "polonium")
 testing_facility_state = testing_facility_state.put_microchip(1, 1, "polonium") # Second floor
 testing_facility_state = testing_facility_state.put_generator(0, 2, "thulium")
@@ -287,6 +309,13 @@ testing_facility_state = testing_facility_state.put_generator(0, 6, "ruthenium")
 testing_facility_state = testing_facility_state.put_microchip(0, 7, "ruthenium")
 testing_facility_state = testing_facility_state.put_generator(0, 8, "cobalt")
 testing_facility_state = testing_facility_state.put_microchip(0, 9, "cobalt")
+testing_facility_state = testing_facility_state.put_generator(0, 10, "elerium") # Part 2
+testing_facility_state = testing_facility_state.put_microchip(0, 11, "elerium") # Part 2
+testing_facility_state = testing_facility_state.put_generator(0, 12, "dilithium") # Part 2
+testing_facility_state = testing_facility_state.put_microchip(0, 13, "dilithium") # Part 2
+# puts testing_facility_state.to_s
+# pp testing_facility_state.to_comparable_representation
+# exit
 
 solver = Solver.new(testing_facility_state)
 solution = solver.solve
@@ -297,19 +326,13 @@ else
   puts
   puts
 
-  solution_states = []
-  current_solution = solution
-  while !current_solution.nil?
-    solution_states << current_solution.testing_facility_state
-    current_solution = current_solution.previous_solution_candidate
-  end
-
-  solution_states.reverse.each do |x|
+  solution_testing_facility_states = solution.testing_facility_states
+  solution_testing_facility_states.each do |x|
     puts x.to_s
     puts "---"
   end
 
   puts
   puts
-  puts "step_count:#{solution_states.length - 1}" # Subtract initial state
+  puts "step_count:#{solution_testing_facility_states.length - 1}" # Subtract initial state
 end
