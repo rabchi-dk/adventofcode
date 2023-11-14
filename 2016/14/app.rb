@@ -1,43 +1,16 @@
 require 'digest'
 
-class CachedMD5GeneratorChallenge
-  def initialize
-    @salt = "ahsbgdzn"
+class CachedMD5Generator
+  def initialize(salt, filename, extra_iterations = nil)
+    @salt = salt
     @hashes = nil
+    @filename = filename
+    @extra_iterations = extra_iterations || 0
   end
 
-  def hash(index)
-    lazy_load_hashes
-
-    cached_hash = @hashes[index.to_s]
-    return cached_hash if cached_hash
-
-    generated_hash = Digest::MD5.hexdigest(@salt + index.to_s)
-    persist(index, generated_hash)
-    return generated_hash
-  end
-
-  def lazy_load_hashes
-    if @hashes.nil?
-      @hashes = Hash.new
-      File.readlines("cache.hashes.challenge").each do |line|
-        index, hash = line.chomp.split(";")
-        @hashes[index] = hash
-      end if File.exist?("cache.hashes.challenge")
-    end
-  end
-
-  def persist(index, hash)
-    File.open("cache.hashes.challenge", "a") do |file|
-      file.puts "#{index};#{hash}"
-    end
-  end
-end
-
-class CachedMD5GeneratorChallengePart2
-  def initialize
-    @salt = "ahsbgdzn"
-    @hashes = nil
+  def filename
+    raise "Filename must be specified!" if @filename.nil? || @filename.empty?
+    @filename
   end
 
   def hash(index)
@@ -47,7 +20,7 @@ class CachedMD5GeneratorChallengePart2
     return cached_hash if cached_hash
 
     generated_hash = @salt + index.to_s
-    0.step(2016).each { generated_hash = Digest::MD5.hexdigest(generated_hash) }
+    0.step(@extra_iterations).each { generated_hash = Digest::MD5.hexdigest(generated_hash) }
     persist(index, generated_hash)
     return generated_hash
   end
@@ -55,49 +28,15 @@ class CachedMD5GeneratorChallengePart2
   def lazy_load_hashes
     if @hashes.nil?
       @hashes = Hash.new
-      File.readlines("cache.hashes.challenge.part2").each do |line|
+      File.readlines(filename).each do |line|
         index, hash = line.chomp.split(";")
         @hashes[index] = hash
-      end if File.exist?("cache.hashes.challenge.part2")
+      end if File.exist?(filename)
     end
   end
 
   def persist(index, hash)
-    File.open("cache.hashes.challenge.part2", "a") do |file|
-      file.puts "#{index};#{hash}"
-    end
-  end
-end
-
-class CachedMD5GeneratorExample
-  def initialize
-    @salt = "abc"
-    @hashes = nil
-  end
-
-  def hash(index)
-    lazy_load_hashes
-
-    cached_hash = @hashes[index.to_s]
-    return cached_hash if cached_hash
-
-    generated_hash = Digest::MD5.hexdigest(@salt + index.to_s)
-    persist(index, generated_hash)
-    return generated_hash
-  end
-
-  def lazy_load_hashes
-    if @hashes.nil?
-      @hashes = Hash.new
-      File.readlines("cache.hashes.example").each do |line|
-        index, hash = line.chomp.split(";")
-        @hashes[index] = hash
-      end if File.exist?("cache.hashes.example")
-    end
-  end
-
-  def persist(index, hash)
-    File.open("cache.hashes.example", "a") do |file|
+    File.open(filename, "a") do |file|
       file.puts "#{index};#{hash}"
     end
   end
@@ -107,9 +46,9 @@ class Solver
   def solve
     repeating_char_regex = generate_repeating_char_regex
 
-    # md5gen = CachedMD5GeneratorExample.new # Example
-    # md5gen = CachedMD5GeneratorChallenge.new # Part 1
-    md5gen = CachedMD5GeneratorChallengePart2.new # Part 2
+    # md5gen = CachedMD5Generator.new("abc", "cache.hashes.example") # Example (broken)
+    # md5gen = CachedMD5Generator.new("ahsbgdzn", "cache.hashes.challenge") # Part 1
+    md5gen = CachedMD5Generator.new("ahsbgdzn", "cache.hashes.challenge.part2", 2016) # Part 2
 
     matches = []
     key_matches = []
