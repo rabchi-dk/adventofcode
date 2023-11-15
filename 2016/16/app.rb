@@ -18,14 +18,15 @@ end
 
 def checksum(string)
   result = ""
-  0.step(string.length-1, by: 2).each do |i|
-    a,b = string.slice(i, 2).chars
+
+  string.chars.each_slice(2) do |a,b|
     if a == b
       result << "1"
     else
       result << "0"
     end
   end
+
   if result.length.even?
     return checksum(result)
   else
