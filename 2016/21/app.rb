@@ -48,9 +48,56 @@ class BunnyScrambler
   end
 end
 
-class BunnyInstructionsExecutor
+class BunnyScramblerReverse
   def initialize
     @scrambler = BunnyScrambler.new
+  end
+
+  def swap_position(input, x, y)
+    @scrambler.swap_position(input, y, x)
+  end
+
+  def swap_letter(input, x, y)
+    @scrambler.swap_letter(input, y, x)
+  end
+
+  def reverse_positions(input, x, y)
+    @scrambler.reverse_positions(input, x, y)
+  end
+
+  def rotate_left(input, x)
+    @scrambler.rotate_right(input, x)
+  end
+
+  def rotate_right(input, x)
+    @scrambler.rotate_left(input, x)
+  end
+
+  def move_position(input, from, to)
+    @scrambler.move_position(input, to, from)
+  end
+
+  def rotate_by_position_of_letter(input, letter)
+    candidates = []
+    (1..).each do |i|
+      candidates << input.chars.rotate(i).join("")
+      break if i > (input.length - 1)
+    end
+
+    ok_candidates = candidates.select do |candidate|
+      input == @scrambler.rotate_by_position_of_letter(candidate, letter)
+    end
+
+    #raise "Too many candidates!" if ok_candidates.length > 1
+    debugger if ok_candidates.length > 1
+
+    ok_candidates.first
+  end
+end
+
+class BunnyInstructionsExecutor
+  def initialize(scrambler = nil)
+    @scrambler = scrambler || BunnyScrambler.new
   end
   attr_reader :scrambler
 
@@ -89,6 +136,18 @@ class BunnyInstructionsExecutor
       #puts "input is now: #{input}"
     end
     input
+  end
+end
+
+class BunnyInstructionsExecutorReverse
+  def initialize(scrambler = nil)
+    reverse_scrambler = scrambler || BunnyScramblerReverse.new
+    @instruction_executor = BunnyInstructionsExecutor.new(reverse_scrambler)
+  end
+
+  def execute(input, instructions)
+    reversed_instructions = instructions.split("\n").reverse.join("\n")
+    @instruction_executor.execute(input, reversed_instructions)
   end
 end
 
@@ -132,3 +191,35 @@ end
 puts "-- Part 1: --"
 input = Challenge.new.input
 puts BunnyInstructionsExecutor.new.execute("abcdefgh", input)
+
+puts "-- Part 2: --"
+input = Challenge.new.input
+
+puts BunnyInstructionsExecutorReverse.new.execute("fbgdceah", input)
+
+# puts BunnyInstructionsExecutorReverse.new.execute("fbgdceah", "reverse positions 0 through 6")
+# raise "reverse failed" unless "fbgdceah" == BunnyInstructionsExecutor.new.execute("aecdgbfh", "reverse positions 0 through 6")
+# puts "---"
+# puts BunnyInstructionsExecutorReverse.new.execute("aecdgbfh", "move position 3 to position 2")
+# raise "move position failed" unless "aecdgbfh" == BunnyInstructionsExecutor.new.execute("aedcgbfh", "move position 3 to position 2")
+# puts "---"
+# puts BunnyInstructionsExecutorReverse.new.execute("aedcgbfh", "move position 4 to position 6")
+# puts "---"
+# puts BunnyInstructionsExecutorReverse.new.execute("aedcfgbh", "rotate left 3 steps")
+# puts "---"
+
+# s = "bhaecdfg"
+# p = []
+# (1..).each do |i|
+#   p << s.chars.rotate(i).join("")
+#   break if i > s.length
+# end
+# pp p
+
+# a_scrambler = BunnyScrambler.new
+# p.each do |sb|
+#   x = a_scrambler.rotate_by_position_of_letter(sb, "d")
+#   if s == x
+#     puts x
+#   end
+# end
