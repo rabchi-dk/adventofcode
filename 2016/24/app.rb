@@ -1,3 +1,4 @@
+require_relative 'lib/challenge'
 require 'debug'
 
 class AirDuctLocation
@@ -53,8 +54,8 @@ class AirDuctGraph
     @number_map[number]
   end
 
-  def sample
-    @location_grid.flatten.compact.sample
+  def numbers
+    @number_map.keys
   end
 end
 
@@ -119,19 +120,48 @@ class AirDuctParser
 end
 
 class AirDuctSolver
-  def shortest_distance_between(location_a, location_b)
+  def initialize(graph)
+    @graph = graph
+    @distances_from_numbers = nil
+  end
+
+  def lazy_prepare_distances_from_numbers
+    if @distances_from_numbers.nil?
+      @distances_from_numbers = @graph.numbers.collect { |n| [n, distances_from(@graph.get_by_number(n))] }.to_h
+    end
+  end
+
+  def solve(part = nil)
+    lazy_prepare_distances_from_numbers
+    numbers = @graph.numbers
+
+    # Paths must start at 0
+    possible_paths = numbers.permutation.select { |path| 0 == path[0] }
+
+    if :part2 == part
+      possible_paths = possible_paths.collect { |path| path + [0] }
+    end
+
+    possible_path_lengths = possible_paths.collect do |possible_path|
+      length = 0
+
+      possible_path.each_cons(2) do |pair|
+        length = length + @distances_from_numbers[pair[0]][@graph.get_by_number(pair[1]).coords].length
+      end
+
+      length
+    end
+
+    possible_path_lengths.min
+  end
+
+  def distances_from(location_a)
     shortest_path_to = Hash.new
     queue = [location_a]
 
     while !queue.empty?
       current_location = queue.shift
       current_path = (shortest_path_to[current_location.coords] || []) + [current_location]
-
-      if current_location.eql?(location_b)
-        puts "GOAL! Went from #{location_a.to_s} to #{location_b.to_s} in #{current_path.length - 1} steps." # Subtract start location from path to get number of steps
-        pp current_path.collect { |p| p.to_s }
-        return
-      end
 
       current_location.neighbour_locations.each do |neighbour_location|
         if shortest_path_to[neighbour_location.coords].nil? || shortest_path_to[neighbour_location.coords].length > current_path.length
@@ -141,38 +171,30 @@ class AirDuctSolver
       end
     end
 
-    # puts "Shortest paths from #{location_a.to_s} to:"
-    # pp shortest_path_to.to_a.collect { |k,v| [k, v.collect { |b| b.to_s }] }
+    shortest_path_to
   end
 end
 
-example_input = "###########
-#0.1.....2#
-#.#######.#
-#4.......3#
-###########
-"
+
+
+input = Challenge.new.input
+
+# input = "###########
+# #0.1.....2#
+# #.#######.#
+# #4.......3#
+# ###########
+# "
 
 air_duct_parser = AirDuctParser.new
 
-parser_result = air_duct_parser.parse_input(example_input)
+parser_result = air_duct_parser.parse_input(input)
 
 #puts parser_result.to_s
 
-air_duct_solver = AirDuctSolver.new
+air_duct_solver = AirDuctSolver.new(parser_result)
 
-location_a = parser_result.get_by_number(0)
-location_b = parser_result.get_by_number(1)
-air_duct_solver.shortest_distance_between(location_a, location_b)
-
-location_a = parser_result.get_by_number(4)
-location_b = parser_result.get_by_number(1)
-air_duct_solver.shortest_distance_between(location_a, location_b)
-
-location_a = parser_result.get_by_number(1)
-location_b = parser_result.get_by_number(2)
-air_duct_solver.shortest_distance_between(location_a, location_b)
-
-location_a = parser_result.get_by_number(2)
-location_b = parser_result.get_by_number(3)
-air_duct_solver.shortest_distance_between(location_a, location_b)
+puts "Part 1:"
+puts air_duct_solver.solve
+puts "Part 2:"
+puts air_duct_solver.solve(:part2)
