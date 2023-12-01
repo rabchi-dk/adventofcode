@@ -1,7 +1,12 @@
 require_relative 'lib/challenge'
-require 'debug'
 
-class Solver
+class NumberScannerPart1
+  def scan(input)
+    input.scan(/[0-9]/)
+  end
+end
+
+class NumberScannerPart2
   DIGIT_MAP = {
     "one" => "1",
     "two" => "2",
@@ -14,60 +19,38 @@ class Solver
     "nine" => "9",
   }
 
-  def solve_part1(input)
-    input.split("\n").collect { |line| solve_line_part1(line) }
+  def scan(input)
+    input
+      .scan(/(?=([0-9]|#{DIGIT_MAP.keys.join("|")}))/)
+      .collect { |groups| groups[0] }
+      .collect { |digit_match| DIGIT_MAP[digit_match] || digit_match }
+  end
+end
+
+class Solver
+  def initialize(scanner)
+    @scanner = scanner
   end
 
-  def solve_line_part1(input)
-    org_input = input.dup
-    digits = input.scan(/[0-9]/)
-    return 0 if digits.length == 0
-    x = (digits.first + digits.last).to_i
-    #pp [org_input, digits, x]
-    return x
-  end
-
-  def solve_part2(input)
-    input.split("\n").collect { |line| solve_line_part2(line) }
-  end
-
-  def solve_line_part2(input)
-    org_input = input.dup
-    digits = ([first_pseudo_digit(input)] + input.scan(/[0-9]/) + [last_pseudo_digit(input)]).compact
-    return 0 if digits.length == 0
-    x = (digits.first + digits.last).to_i
-    #pp [org_input, digits, x]
-    return x
-  end
-
-  def first_pseudo_digit(input)
-    digit = nil
-
-    if m = /^(.*?)(one|two|three|four|five|six|seven|eight|nine)/.match(input)
-      before_digit = m[1]
-      string_digit = m[2]
-      digit = DIGIT_MAP[m[2]] unless /[0-9]/.match(before_digit)
-    end
-
-    digit
-  end
-
-  def last_pseudo_digit(input)
-    digit = nil
-
-    if m = /^(?:.*)(one|two|three|four|five|six|seven|eight|nine)(.*?)$/.match(input)
-      string_digit = m[1]
-      trailing_string = m[2]
-      digit = DIGIT_MAP[m[1]] unless /[0-9]/.match(trailing_string)
-    end
-
-    digit
+  def solve(input)
+    input
+      .split("\n")
+      .collect { |line| @scanner.scan(line) }
+      .reject { |digits| digits.empty? }
+      .collect { |digits| (digits.first + digits.last).to_i }
+      .inject(0) { |sum, v| sum = sum + v }
   end
 end
 
 input_challenge = Challenge.new.input
 
-input_example = "two1nine
+input_example_part1 = "1abc2
+pqr3stu8vwx
+a1b2c3d4e5f
+treb7uchet
+"
+
+input_example_part2 = "two1nine
 eightwothree
 abcone2threexyz
 xtwone3four
@@ -76,8 +59,10 @@ zoneight234
 7pqrstsixteen
 "
 
-solver = Solver.new
 puts "Part 1:"
-puts solver.solve_part1(input_challenge).inject(0) { |sum,v| sum = sum + v }
+part1_solution = Solver.new(NumberScannerPart1.new).solve(input_challenge)
+puts part1_solution
+
 puts "Part 2:"
-puts solver.solve_part2(input_challenge).inject(0) { |sum,v| sum = sum + v }
+part2_solution = Solver.new(NumberScannerPart2.new).solve(input_challenge)
+puts part2_solution
