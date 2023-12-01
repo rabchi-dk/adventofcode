@@ -2,71 +2,66 @@ require_relative 'lib/challenge'
 require 'debug'
 
 class Solver
-  def initialize
+  DIGIT_MAP = {
+    "one" => "1",
+    "two" => "2",
+    "three" => "3",
+    "four" => "4",
+    "five" => "5",
+    "six" => "6",
+    "seven" => "7",
+    "eight" => "8",
+    "nine" => "9",
+  }
+
+  def solve_part1(input)
+    input.split("\n").collect { |line| solve_line_part1(line) }
   end
 
-  def solve(input)
-    input.split("\n").collect { |line| solve_line(line) }
-  end
-
-  def solve_line(input)
+  def solve_line_part1(input)
     org_input = input.dup
-    input = translate_digits(input)
     digits = input.scan(/[0-9]/)
     return 0 if digits.length == 0
-    x = (digits.flatten[0] + digits.flatten[-1]).to_i
-    pp [org_input, digits, x]
+    x = (digits.first + digits.last).to_i
+    #pp [org_input, digits, x]
     return x
   end
 
-  def translate_digits(input)
-    map = {
-      "one" => 1,
-      "two" => 2,
-      "three" => 3,
-      "four" => 4,
-      "five" => 5,
-      "six" => 6,
-      "seven" => 7,
-      "eight" => 8,
-      "nine" => 9,
-      "ten" => 10,
-    }
+  def solve_part2(input)
+    input.split("\n").collect { |line| solve_line_part2(line) }
+  end
 
-    reverse_map = {
-      "one".reverse => 1,
-      "two".reverse => 2,
-      "three".reverse => 3,
-      "four".reverse => 4,
-      "five".reverse => 5,
-      "six".reverse => 6,
-      "seven".reverse => 7,
-      "eight".reverse => 8,
-      "nine".reverse => 9,
-    }
+  def solve_line_part2(input)
+    org_input = input.dup
+    digits = ([first_pseudo_digit(input)] + input.scan(/[0-9]/) + [last_pseudo_digit(input)]).compact
+    return 0 if digits.length == 0
+    x = (digits.first + digits.last).to_i
+    #pp [org_input, digits, x]
+    return x
+  end
 
-    string_digit = nil
+  def first_pseudo_digit(input)
     digit = nil
-    if m = /one|two|three|four|five|six|seven|eight|nine/.match(input)
-      string_digit = m[0]
-      digit = map[m[0]].to_s
-    end
-    if digit
-      input = input.sub(string_digit, digit)
+
+    if m = /^(.*?)(one|two|three|four|five|six|seven|eight|nine)/.match(input)
+      before_digit = m[1]
+      string_digit = m[2]
+      digit = DIGIT_MAP[m[2]] unless /[0-9]/.match(before_digit)
     end
 
-    reverse_input = input.reverse
-    reverse_string_digit = nil
-    reverse_digit = nil
-    if m = /enin|thgie|neves|xis|evif|ruof|eerht|owt|eno/.match(reverse_input)
-      reverse_string_digit = m[0]
-      reverse_digit = reverse_map[m[0]].to_s
-    end
-    if reverse_digit
-      reverse_input = reverse_input.sub(reverse_string_digit, reverse_digit)
+    digit
+  end
+
+  def last_pseudo_digit(input)
+    digit = nil
+
+    if m = /^(?:.*)(one|two|three|four|five|six|seven|eight|nine)(.*?)$/.match(input)
+      string_digit = m[1]
+      trailing_string = m[2]
+      digit = DIGIT_MAP[m[1]] unless /[0-9]/.match(trailing_string)
     end
 
-    reverse_input.reverse
+    digit
   end
 end
 
@@ -82,10 +77,7 @@ zoneight234
 "
 
 solver = Solver.new
-
-# pp solver.solve_line("lmscbrnlzmbqpl75ptwo64eightwoxcm")
-# exit
-
-result = solver.solve(input_challenge).inject(0) { |sum,v| sum = sum + v }
-puts "Result is wrong" if [54251, 54775, 54235].include?(result)
-pp result
+puts "Part 1:"
+puts solver.solve_part1(input_challenge).inject(0) { |sum,v| sum = sum + v }
+puts "Part 2:"
+puts solver.solve_part2(input_challenge).inject(0) { |sum,v| sum = sum + v }
