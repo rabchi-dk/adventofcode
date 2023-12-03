@@ -32,7 +32,7 @@ class Solver
     end
   end
 
-  def solve(input)
+  def solve_part1(input)
     sum = 0
     lines = input.split("\n")
     lines.each.with_index do |line, rindex|
@@ -52,10 +52,10 @@ class Solver
         end
         if is_symbol?(char) || "." == char || cindex == line.length-1
           if is_good
-            puts " !!! Found good: #{number}"
+            #puts " !!! Found good: #{number}"
             sum = sum + number.to_i
           else
-            puts " !!! NOT GOOD: #{number}" if !number.empty?
+            #puts " !!! NOT GOOD: #{number}" if !number.empty?
           end
           is_good = false
           number = ""
@@ -104,7 +104,7 @@ class Solver
       end
       stuff = result.uniq
       if stuff.length == 2
-        puts "#{stuff[0][2]} * #{stuff[1][2]}"
+        #puts "#{stuff[0][2]} * #{stuff[1][2]}"
         tmp_gear_ratio = stuff[0][2] * stuff[1][2]
         gear_ratio_sum = gear_ratio_sum + tmp_gear_ratio
       end
@@ -144,7 +144,8 @@ solver = Solver.new
 # pp solver.enum_neighbour_indeces([2, 0], 3, 3)
 # exit
 
-result = solver.solve_part2(input_challenge)
-puts result
-raise "NO!" if [4375248].include?(result)
-#raise "NO!" if [8474516, 8349125, 8472290].include?(result)
+result_part1 = solver.solve_part1(input_challenge)
+puts result_part1
+
+result_part2 = solver.solve_part2(input_challenge)
+puts result_part2
