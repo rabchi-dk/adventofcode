@@ -1,61 +1,36 @@
 require_relative 'lib/challenge'
-require 'debug'
 
 class Solver
-  SYMBOLS = ["-", "*", "&", "$", "@", "/", "#", "=", "%", "+"]
-  def initialize
+  def initialize(input)
+    @symbols = input.gsub(/[0-9]|\.|\n/, "").chars.uniq
+    @lines = input.split("\n")
+    @max_rindex = @lines[0].length-1
+    @max_cindex = @lines.length-1
   end
 
   def is_symbol?(char)
-    SYMBOLS.any? { |symbol| symbol == char }
+    @symbols.any? { |symbol| symbol == char }
   end
 
-  def symbol_near?(lines, rindex, cindex)
-    if cindex > 0 && is_symbol?(lines[rindex][cindex-1])
-      true
-    elsif cindex < lines[0].length-1 && is_symbol?(lines[rindex][cindex+1])
-      true
-    elsif cindex > 0 && rindex > 0 && is_symbol?(lines[rindex-1][cindex-1])
-      true
-    elsif rindex < lines.length-1 && rindex > 0 && is_symbol?(lines[rindex-1][cindex])
-      true
-    elsif cindex < lines[0].length-1 && rindex > 0 && is_symbol?(lines[rindex-1][cindex+1])
-      true
-    elsif cindex > 0 && rindex < lines.length-1 && is_symbol?(lines[rindex+1][cindex-1])
-      true
-    elsif rindex < lines.length-1 && is_symbol?(lines[rindex+1][cindex])
-      true
-    elsif cindex < lines[0].length-1 && rindex < lines.length-1 && is_symbol?(lines[rindex+1][cindex+1])
-      true
-    else
-      false
-    end
+  def symbol_near?(index)
+    enum_neighbour_indices(index).any? { |row, col| is_symbol?(@lines[row][col]) }
   end
 
-  def solve_part1(input)
+  def solve_part1
     sum = 0
-    lines = input.split("\n")
-    lines.each.with_index do |line, rindex|
-      #puts "line:#{line} (rindex:#{rindex})"
+    @lines.each.with_index do |line, rindex|
       is_good = false
       number = ""
       line.chars.each.with_index do |char, cindex|
-        #debugger if 31 == cindex
-        #puts "  char:#{char}"
         if /[0-9]/.match(char)
           number = number + char
-          #puts "   number:#{number}"
-          #debugger if "643" == number
-          if symbol_near?(lines, rindex, cindex)
+          if symbol_near?([rindex, cindex])
             is_good = true
           end
         end
         if is_symbol?(char) || "." == char || cindex == line.length-1
           if is_good
-            #puts " !!! Found good: #{number}"
             sum = sum + number.to_i
-          else
-            #puts " !!! NOT GOOD: #{number}" if !number.empty?
           end
           is_good = false
           number = ""
@@ -66,59 +41,50 @@ class Solver
     sum
   end
 
-  def solve_part2(input)
+  def solve_part2
     gear_ratio_sum = 0
 
-    result = 0
-    lines = input.split("\n")
-    max_rindex = lines[0].length-1
-    max_cindex = lines.length-1
-
     interesting_symbol_locations = []
-    lines.each.with_index do |line, rindex|
-      stari = line.chars.collect.with_index { |c,i| i if c == "*" }.compact
-      neighbouri = stari.collect { |i| enum_neighbour_indeces([rindex, i], max_rindex, max_cindex) }
-      interesting_symbol_locations = interesting_symbol_locations + neighbouri
-      #neighbours = neighbouri.collect { |x,y| [x, y, lines[x][y]] }.select { |x,y,c| /[0-9]/.match(c) }
+    @lines.each.with_index do |line, rindex|
+      star_index = line.chars.collect.with_index { |c,i| i if c == "*" }.compact
+      neighbour_indices = star_index.collect { |i| enum_neighbour_indices([rindex, i]) }
+      interesting_symbol_locations = interesting_symbol_locations + neighbour_indices
     end
 
     number_locations = []
-    lines.each.with_index do |line, rindex|
+    @lines.each.with_index do |line, rindex|
       i = 0
-      while i < line.length-1 && m = /[0-9]+/.match(line, i)
-        si, se = m.offset(0)
-        se = se -1
-        i = se + 1
+      while m = /[0-9]+/.match(line, i)
+        number = m[0].to_i
+        number_start_index, number_end_index = m.offset(0)
+        i = number_end_index
+        number_end_index = number_end_index -1
 
-        number_locations << [rindex, si..se, m[0].to_i]
+        number_locations << [rindex, number_start_index..number_end_index, number]
       end
     end
 
-    interesting_symbol_locations.each do |coll|
-      result = []
-      coll.each do |sx,sy|
-        blah = number_locations.select { |nx, ny, n|
-          sx == nx && ny.include?(sy)
-        }
-        result = result + blah
+    interesting_symbol_locations.each do |symbol_neighbour_locations|
+      numbers_near_this_symbol = []
+      symbol_neighbour_locations.each do |srow, scol|
+        numbers_near_this_symbol = numbers_near_this_symbol + number_locations.select { |nrow, ncol, n| srow == nrow && ncol.include?(scol)}
       end
-      stuff = result.uniq
-      if stuff.length == 2
-        #puts "#{stuff[0][2]} * #{stuff[1][2]}"
-        tmp_gear_ratio = stuff[0][2] * stuff[1][2]
-        gear_ratio_sum = gear_ratio_sum + tmp_gear_ratio
+      numbers_near_this_symbol = numbers_near_this_symbol.uniq
+
+      if numbers_near_this_symbol.length == 2
+        gear_ratio_sum = gear_ratio_sum + numbers_near_this_symbol[0][2] * numbers_near_this_symbol[1][2]
       end
     end
 
     gear_ratio_sum
   end
 
-  def enum_neighbour_indeces(index, max_x, max_y)
+  def enum_neighbour_indices(index)
     [[-1, -1], [-1, 0], [-1, 1],
      [0, -1], [0, 0], [0, 1],
      [1, -1], [1, 0], [1, 1]]
-      .collect { |dx, dy| [index[0] + dx, index[1] + dy] }
-      .reject { |x, y| x > max_y || y > max_y || x < 0 || y < 0 }
+      .collect { |drow, dcol| [index[0] + drow, index[1] + dcol] }
+      .reject { |row, col| row > @max_rindex || col > @max_cindex || row < 0 || col < 0 }
   end
 end
 
@@ -136,16 +102,12 @@ input_example = "467..114..
 .664.598..
 "
 
-# symbols = input_challenge.gsub(/[0-9]|\.|\n/, "")
-# pp symbols.chars.uniq
-# exit
+solver = Solver.new(input_challenge)
 
-solver = Solver.new
-# pp solver.enum_neighbour_indeces([2, 0], 3, 3)
-# exit
-
-result_part1 = solver.solve_part1(input_challenge)
+result_part1 = solver.solve_part1
 puts result_part1
+raise "incorrect" if 532331 != result_part1
 
-result_part2 = solver.solve_part2(input_challenge)
+result_part2 = solver.solve_part2
 puts result_part2
+raise "incorrect" if 82301120 != result_part2
