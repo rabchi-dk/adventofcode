@@ -1,46 +1,36 @@
 require_relative 'lib/challenge'
 require 'debug'
 
+CardGameResult = Struct.new(:number_of_wins, :score)
+
 class Solver
-  def initialize
-  end
-
   def solve_part2(input)
-    lines = input.split("\n").collect { |line| [1, nil, line] }
+    lines = input.split("\n").collect { |line| [1, solve_line(line).number_of_wins] }
 
-    lines.each.with_index do |(reps, cached_wins, line), index|
-      num_wins = cached_wins
-      reps.times do
-        if num_wins.nil?
-          num_wins, score = solve_line(line)
-          if lines[index][1].nil?
-            lines[index][1] = num_wins
-          end
-        end
-        ending_index = [index+num_wins, lines.length-1].min
-        ((index+1)..(ending_index)).each do |ii|
-          lines[ii][0] = lines[ii][0] + 1
-        end
+    lines.each.with_index do |(reps, number_of_wins), index|
+      ending_index = [index+number_of_wins, lines.length-1].min
+      ((index+1)..(ending_index)).each do |ii|
+        lines[ii][0] = lines[ii][0] + reps
       end
     end
 
-    return lines.collect { |reps, cached_wins, line| reps }.sum
+    return lines.collect { |reps, number_of_wins| reps }.sum
   end
 
   def solve_part1(input)
     sum = 0
+
     input.split("\n").each.with_index do |line, index|
-      num_wins, line_score = solve_line(line)
-      sum = sum + line_score
+      card_game_result = solve_line(line)
+      sum = sum + card_game_result.score
     end
+
     sum
   end
 
   def solve_line(line)
     header, line = line.split(":")
-    winning_s, draw_s = line.split("|")
-    winning = winning_s.scan(/[0-9]+/).collect { |n| n.to_i }
-    draw = draw_s.scan(/[0-9]+/).collect { |n| n.to_i }
+    winning, draw = line.split("|").collect { |string_part| string_part.scan(/[0-9]+/).collect { |n| n.to_i } }
 
     interesting_nums = winning.intersection(draw)
 
@@ -51,7 +41,7 @@ class Solver
       score = 2 ** (interesting_nums.length-1)
     end
 
-    [interesting_nums.length, score]
+    CardGameResult.new(interesting_nums.length, score)
   end
 end
 
