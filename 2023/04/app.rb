@@ -47,11 +47,8 @@ class Solver
     score = 0
     if interesting_nums.length == 1
       score = 1
-    else
-      score = 1
-      (interesting_nums.length-1).times do |n|
-        score = score * 2
-      end
+    elsif interesting_nums.length > 1
+      score = 2 ** (interesting_nums.length-1)
     end
 
     [interesting_nums.length, score]
