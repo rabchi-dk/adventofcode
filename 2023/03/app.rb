@@ -1,4 +1,5 @@
 require_relative 'lib/challenge'
+require 'debug'
 
 class Solver
   def initialize(input)
@@ -13,7 +14,7 @@ class Solver
   end
 
   def symbol_near?(index)
-    enum_neighbour_indices(index).any? { |row, col| is_symbol?(@lines[row][col]) }
+    neighbour_indices(index).any? { |row, col| is_symbol?(@lines[row][col]) }
   end
 
   def solve_part1
@@ -44,25 +45,15 @@ class Solver
   def solve_part2
     gear_ratio_sum = 0
 
-    interesting_symbol_locations = []
-    @lines.each.with_index do |line, rindex|
-      star_index = line.chars.collect.with_index { |c,i| i if c == "*" }.compact
-      neighbour_indices = star_index.collect { |i| enum_neighbour_indices([rindex, i]) }
-      interesting_symbol_locations = interesting_symbol_locations + neighbour_indices
-    end
+    interesting_symbol_locations = @lines.collect.with_index { |line, rindex|
+      line.chars.collect.with_index { |char, i|
+        neighbour_indices([rindex, i]) if char == "*" }.compact }.flatten(1)
 
-    number_locations = []
-    @lines.each.with_index do |line, rindex|
-      i = 0
-      while m = /[0-9]+/.match(line, i)
-        number = m[0].to_i
-        number_start_index, number_end_index = m.offset(0)
-        i = number_end_index
-        number_end_index = number_end_index -1
-
-        number_locations << [rindex, number_start_index..number_end_index, number]
-      end
-    end
+    number_locations = @lines.collect.with_index { |line, rindex|
+      line
+        .to_enum(:scan, /[0-9]+/)
+        .lazy
+        .collect { |number| [rindex, Regexp.last_match.offset(0)[0]..Regexp.last_match.offset(0)[1]-1, number.to_i] }.to_a }.flatten(1)
 
     interesting_symbol_locations.each do |symbol_neighbour_locations|
       numbers_near_this_symbol = []
@@ -79,7 +70,7 @@ class Solver
     gear_ratio_sum
   end
 
-  def enum_neighbour_indices(index)
+  def neighbour_indices(index)
     [[-1, -1], [-1, 0], [-1, 1],
      [0, -1], [0, 0], [0, 1],
      [1, -1], [1, 0], [1, 1]]
