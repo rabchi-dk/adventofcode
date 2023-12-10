@@ -73,7 +73,7 @@ class Solver
       # pp "goal_pos: #{goal_pos}"
       # pp "visited_positions: #{visited_positions}"
 
-      queue = queue + neighbours(current_pos).collect { |dir, pos| pos }.reject { |pos| visited_positions.include?(pos) }
+      queue = queue + neighbours(current_pos).collect { |dir, pos| pos }.reject { |pos| visited_positions.last(2).include?(pos) }
     end
   end
 
@@ -107,14 +107,7 @@ class Solver
     current_char = get_char(pos)
     possible_neighbours(pos).select do |current_dir, neighbour_pos|
       neighbour_char = get_char(neighbour_pos)
-      # pp "current_char: #{current_char}, current_dir: #{current_dir}, neighbour_char: #{neighbour_char}, neighbour_pos: #{neighbour_pos}"
-      if LOOKING_FOR[[current_char, current_dir].freeze].include?(neighbour_char)
-        # pp "good"
-        true
-      else
-        # pp "not good"
-        false
-      end
+      LOOKING_FOR[[current_char, current_dir].freeze].include?(neighbour_char)
     end
   end
 end
