@@ -1,3 +1,5 @@
+require 'debug'
+
 class SolverPart1
   def solve(input)
     lines = input.split("\n")
@@ -28,9 +30,6 @@ end
 class SolverPart2
   def solve(input)
     board = input.split("\n").collect { |line| line.chars }
-
-    puts "before:"
-    #pp board
 
     boards = [board]
 
@@ -72,14 +71,10 @@ class SolverPart2
   end
 
   def cycle(board)
-    board = move_stuff(board)
-    board = turn_clockwise(board)
-    board = move_stuff(board)
-    board = turn_clockwise(board)
-    board = move_stuff(board)
-    board = turn_clockwise(board)
-    board = move_stuff(board)
-    board = turn_clockwise(board)
+    4.times do
+      board = move_stuff(board)
+      board = turn_clockwise(board)
+    end
     board
   end
 
@@ -88,14 +83,18 @@ class SolverPart2
   end
 
   def move_stuff(board)
-    board.transpose.collect { |board_line| move_line_north(board_line) }.transpose
+    return board.transpose.collect { |board_line| move_line_north(board_line) }.transpose
   end
 
   def move_line_north(board_line)
-    length_before = board_line.length
-    parts = (board_line.join("") + "X").split("#")
-    parts = parts.collect { |part| part.chars.sort { |a,b| b <=> a }.join("") }
-    result = parts.join("#").delete("X").chars
-    result
+    board_line_tail = board_line.dup
+    result = []
+    i = 0
+    while !board_line_tail.empty?
+      i = board_line_tail.find_index("#") || board_line_tail.length-1
+      result = result + board_line_tail.take(i+1).sort.reverse
+      board_line_tail = board_line_tail.drop(i+1)
+    end
+    return result
   end
 end
