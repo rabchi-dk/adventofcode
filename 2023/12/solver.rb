@@ -96,7 +96,8 @@ class SolverPart2
     lines = input.split("\n")
     lines.each.with_index do |line, index|
       condition, checksum_ints = parse_line(line)
-      total_sum = total_sum + cached_solve_line(condition, checksum_ints)
+      total_sum = total_sum + solve_line(condition, checksum_ints)
+      #puts "Finished line #{index+1}. total_sum: #{total_sum}."
     end
 
     total_sum
@@ -115,81 +116,114 @@ class SolverPart2
     return [condition, checksum_ints]
   end
 
-  def cached_solve_line(condition, checksum_ints)
-    key = (condition + checksum_ints.join(",")).freeze
-    if cached = @line_solve_cache[key]
-      return cached
-    end
-
-    result = solve_line(condition, checksum_ints)
-
-    @line_solve_cache[key] = result
-
-    return result
+  def solve_line(condition, checksum_ints)
+    start_state_descr = :scanning_outside_group
+    start_index = 0
+    return cached_solve_line_helper(start_state_descr, start_index, condition, checksum_ints)
   end
 
-  def solve_line(condition, checksum_ints)
-    # puts "condition:#{condition}"
-    # print "checksum_ints:"
-    # pp checksum_ints
-
-    # Base case
-    if checksum_ints.empty?
-      # Not good
-      if condition.include?("#")
-        return 0
-      end
-
-      # Good
-      return 1
+  def cached_solve_line_helper(state_descr, i, condition, checksum_ints)
+    cache_key = (state_descr.to_s + ";" + condition.slice(i, condition.length) + ";" + checksum_ints.join(",")).freeze
+    if cached_result = @line_solve_cache[cache_key]
+      return cached_result
     end
 
-    # Another base case
-    # Not good
-    if condition.empty?
-      return 0
-    end
+    computed_result = solve_line_helper(state_descr, i, condition, checksum_ints)
 
-    # Branch on the two possibilities using recursion
-    if condition.start_with?("?")
-      next_condition_with_dot = "." + (condition.slice(1, condition.length) || "")
-      next_condition_with_hash = "#" + (condition.slice(1, condition.length) || "")
-      return cached_solve_line(next_condition_with_dot, checksum_ints) + cached_solve_line(next_condition_with_hash, checksum_ints)
-    end
+    @line_solve_cache[cache_key] = computed_result
 
-    # Trim dots
-    if condition.start_with?(".")
-      next_condition = condition.sub(/^[.]+/, "")
-      return cached_solve_line(next_condition, checksum_ints)
-    end
+    return computed_result
+  end
 
-    if condition.start_with?("#")
-      if checksum_ints.length == 0
+  def solve_line_helper(state_descr, i, condition, checksum_ints)
+    # A lookahead: Checks if there's enough characters left to fill in the broken springs specified in the checksum
+    # if :ended_group == state_descr && (condition.length - i - 1) < checksum_ints.sum
+    #   return 0
+    # end
+
+    # A lookahead: If we're currently looking for ~checksum_ints.first~ number of broken springs we return early if we find a working spring in the next ~checksum_ints.first~ chars
+    # if :scanning_group == state_descr && checksum_ints.length > 0 && condition.slice(i, checksum_ints.first).include?(".")
+    #   return 0
+    # end
+
+    # Some helper variables
+    current_char = condition[i]
+    end_of_line_reached = current_char.nil?
+
+    if end_of_line_reached
+      if checksum_ints.empty? || (checksum_ints.length == 1 && checksum_ints.first == 0)
+        # If the checksum says we're not looking for anymore broken springs then everything is good
+        return 1
+      else
         return 0
       end
+    end
 
-      if condition.length < checksum_ints.first
-        return 0
+    if :scanning_outside_group == state_descr
+      # This is the state we start in and return to when we are not scanning a group (or series) of broken springs or skipping over dots (working springs)
+      if "#" == current_char
+        # Start scanning a group (or series) of working springs
+        return cached_solve_line_helper(:scanning_group, i, condition, checksum_ints)
+      elsif "." == current_char
+        # Start skipping over dots (working springs)
+        return cached_solve_line_helper(:consumingdots, i, condition, checksum_ints)
+      elsif "?" == current_char
+        # There's two possible values for ?
+        # We compute the results of both and sum them
+        next_condition_with_dot = condition.dup
+        next_condition_with_dot[i] = "."
+        a = cached_solve_line_helper(:scanning_outside_group, i, next_condition_with_dot, checksum_ints)
+
+        next_condition_with_hash = condition.dup
+        next_condition_with_hash[i] = "#"
+        b = cached_solve_line_helper(:scanning_outside_group, i, next_condition_with_hash, checksum_ints)
+
+        return a + b
       end
+    elsif :scanning_group == state_descr
+      # We're scanning a group (or series) of broken springs.
+      if "#" == current_char
+        if checksum_ints.empty? || checksum_ints.first == 0
+          # We have encountered a broken spring when we're not looking for one.
+          return 0
+        else
+          # We have encountered a broken spring. Decrement the first number in our checksum.
+          next_checksum_ints = checksum_ints.dup
+          next_checksum_ints[0] = checksum_ints[0] - 1
+          return cached_solve_line_helper(:scanning_group, i+1, condition, next_checksum_ints)
+        end
+      elsif "?" == current_char
+        # There's two possible values for ?
+        # We compute the results of both and sum them
+        next_condition_with_dot = condition.dup
+        next_condition_with_dot[i] = "."
+        a = cached_solve_line_helper(:scanning_group, i, next_condition_with_dot, checksum_ints)
 
-      if condition.slice(0, checksum_ints.first).include?(".")
-        return 0
-      end
+        next_condition_with_hash = condition.dup
+        next_condition_with_hash[i] = "#"
+        b = cached_solve_line_helper(:scanning_group, i, next_condition_with_hash, checksum_ints)
 
-      if checksum_ints.length > 1
-        if condition.length < checksum_ints.first+1 || "#" == condition[checksum_ints.first]
+        return a + b
+      elsif "." == current_char
+        # We have encountered a working spring
+        # Check if are expecting any more springs in this group (or series)
+        if !checksum_ints.empty? && checksum_ints.first == 0
+          return cached_solve_line_helper(:ended_group, i, condition, checksum_ints)
+        else
           return 0
         end
-
-        next_condition = condition.slice(checksum_ints.first+1, condition.length)
-        next_checksum_ints = checksum_ints.drop(1)
-        return cached_solve_line(next_condition, next_checksum_ints)
       end
-
-      # Last group
-      next_condition = condition.slice(checksum_ints.first, condition.length)
-      next_checksum_ints = checksum_ints.drop(1)
-      return cached_solve_line(next_condition, next_checksum_ints)
+    elsif :ended_group == state_descr
+      # We just finished successfully scanning a group (or series) of broken springs
+      # This just drops the first checksum_int (which should be 0 since we only go to this state when it is 0)
+      return cached_solve_line_helper(:consumingdots, i, condition, checksum_ints.drop(1))
+    elsif :consumingdots == state_descr
+      # Skipping dots (working springs)
+      if "." == current_char
+        return cached_solve_line_helper(:consumingdots, i+1, condition, checksum_ints)
+      else
+        return cached_solve_line_helper(:scanning_outside_group, i, condition, checksum_ints)
+      end
     end
   end
 end
