@@ -1,6 +1,61 @@
 require 'debug'
 require_relative '../solver'
 
+describe "SolverPart2CountingAutomata" do
+  context do
+    let(:example01) { ["#", [1], 1] }
+    let(:example02) { ["", [], 1] }
+    let(:example03) { ["#", [], 0] }
+    let(:example04) { [".", [], 1] }
+    let(:example05) { ["?", [], 1] }
+    let(:example06) { ["?", [1], 1] }
+    let(:example07) { ["?.?", [1,1], 1] }
+    solver = SolverPart2CountingAutomata.new
+
+    it "solves example01" do
+      condition, checksum_ints, expected_count = example01
+      count = solver.solve_line(condition, checksum_ints)
+      expect(count).to eq(expected_count)
+    end
+
+    it "solves example02" do
+      condition, checksum_ints, expected_count = example02
+      count = solver.solve_line(condition, checksum_ints)
+      expect(count).to eq(expected_count)
+    end
+
+    it "solves example03" do
+      condition, checksum_ints, expected_count = example03
+      count = solver.solve_line(condition, checksum_ints)
+      expect(count).to eq(expected_count)
+    end
+
+    it "solves example04" do
+      condition, checksum_ints, expected_count = example04
+      count = solver.solve_line(condition, checksum_ints)
+      expect(count).to eq(expected_count)
+    end
+
+    it "solves example05" do
+      condition, checksum_ints, expected_count = example05
+      count = solver.solve_line(condition, checksum_ints)
+      expect(count).to eq(expected_count)
+    end
+
+    it "solves example06" do
+      condition, checksum_ints, expected_count = example06
+      count = solver.solve_line(condition, checksum_ints)
+      expect(count).to eq(expected_count)
+    end
+
+    it "solves example07" do
+      condition, checksum_ints, expected_count = example07
+      count = solver.solve_line(condition, checksum_ints)
+      expect(count).to eq(expected_count)
+    end
+  end
+end
+
 describe "SolverPart2" do
   context do
     let(:example01) { ["#", [1], 1] }

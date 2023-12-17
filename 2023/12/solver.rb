@@ -227,3 +227,165 @@ class SolverPart2
     end
   end
 end
+
+class CountingAutomatonState
+  def initialize(name = nil)
+    @name = name
+    @count = 0
+    @transitions = Hash.new
+    @is_goal_state = false
+    @occurrences = Hash.new
+    @min_occurrences = Hash.new
+  end
+  attr_reader :name, :count
+
+  def add_count(num)
+    @count = @count + num
+  end
+
+  def set_transition(char, next_states, min_occurrence_count = nil)
+    min_occurrence_count ||= 1
+    @min_occurrences[char] = min_occurrence_count
+    @transitions[char] = next_states
+  end
+
+  def is_goal_state!
+    @is_goal_state = true
+  end
+
+  def is_goal_state?
+    @is_goal_state
+  end
+
+  def consume(char)
+    next_states = @transitions[char] || []
+
+    next_states.each do |s|
+      s.add_count(1) unless self.eql?(s)
+    end
+
+    # TODO: This is probably not what I want to do
+    if next_states.empty?
+      @count = 0
+    end
+
+    return next_states
+  end
+end
+
+class SolverPart2CountingAutomata
+  def solve(input)
+    total_sum = 0
+
+    lines = input.split("\n")
+    lines.each.with_index do |line, index|
+      condition, checksum_ints = parse_line(line)
+      total_sum = total_sum + solve_line(condition, checksum_ints)
+      #puts "Finished line #{index+1}. total_sum: #{total_sum}."
+    end
+
+    total_sum
+  end
+
+  def parse_line(line)
+    raise "Parser error" unless line.include?(" ")
+
+    condition, checksum = line.split(" ")
+    checksum_ints = checksum.split(",").collect { |s| s.to_i }
+
+    condition = condition.gsub(/\.+/, ".")
+    condition = ([condition] * 5).join("?")
+    checksum_ints = checksum_ints * 5
+
+    return [condition, checksum_ints]
+  end
+
+  def solve_line(condition, checksum_ints)
+    padded_condition = condition + ".."
+    start_state, goal_states, all_states = parse_checksum_ints_to_automaton(checksum_ints)
+    puts "solve_line condition:#{padded_condition} checksum_ints:"
+    pp checksum_ints
+    puts "all states:#{all_states.collect { |s| s.name }}"
+
+    i = 0
+    current_states = [start_state]
+
+    while i < padded_condition.length
+      print "i:#{i} current_states:"
+      pp current_states.collect { |s| [s.name, s.count] }
+      puts "consuming:#{padded_condition[i]}"
+
+      current_states = current_states.collect do |current_state|
+        current_state.consume(padded_condition[i])
+      end.flatten(1)
+
+      i = i + 1
+    end
+
+    goal_states.collect { |s| s.count }.sum
+  end
+
+  def parse_checksum_ints_to_automaton(checksum_ints)
+    goal_states = []
+
+    bad_cas = CountingAutomatonState.new(:bad)
+    bad_cas.set_transition(".", [bad_cas])
+    bad_cas.set_transition("?", [bad_cas])
+    bad_cas.set_transition("#", [bad_cas])
+
+    init_cas = CountingAutomatonState.new(:init)
+    init_cas.add_count(1)
+
+    last_cas = CountingAutomatonState.new(:goal)
+    last_cas.is_goal_state!
+    last_cas.set_transition("?", [last_cas])
+    last_cas.set_transition(".", [last_cas])
+    goal_states << last_cas
+
+    cas_collection = []
+    checksum_ints.each.with_index do |checksum_int, index|
+      prev_cas = nil
+
+      checksum_int.times do |c|
+        current_cas = CountingAutomatonState.new("state_#{index}_#{c}".to_sym)
+        prev_cas.set_transition("#", [current_cas]) unless prev_cas.nil?
+        prev_cas.set_transition("?", [current_cas]) unless prev_cas.nil?
+        prev_cas = current_cas
+
+        cas_collection << current_cas
+      end
+
+      end_of_group = CountingAutomatonState.new("state_#{index}_end".to_sym)
+      #end_of_group.set_transition("#", [next_group]) # TODO
+      #end_of_group.set_transition("?", [end_of_group, next_group]) # TODO
+      cas_collection.last.set_transition(".", [end_of_group])
+      cas_collection.last.set_transition("?", [end_of_group])
+
+      cas_collection << end_of_group
+    end
+
+    # cas_collection[0..-2].each.with_index do |cas, index|
+    #   next_cas = cas_collection[index+1]
+
+    #   cas.set_transition(".", [next_cas])
+    #   cas.set_transition("#", [cas])
+    #   cas.set_transition("?", [cas, next_cas].compact)
+    # end
+
+    if cas_collection.empty?
+      init_cas.set_transition(".", [last_cas])
+      init_cas.set_transition("?", [last_cas])
+      init_cas.set_transition("#", [bad_cas])
+    else
+      init_cas.set_transition(".", [init_cas])
+      init_cas.set_transition("?", [init_cas, cas_collection.first])
+      init_cas.set_transition("#", [cas_collection.first])
+
+      next_to_last = cas_collection.last
+      next_to_last.set_transition(".", [last_cas])
+      next_to_last.set_transition("?", [next_to_last, last_cas])
+    end
+
+    [init_cas, goal_states, [init_cas] + cas_collection + [last_cas]]
+  end
+end
