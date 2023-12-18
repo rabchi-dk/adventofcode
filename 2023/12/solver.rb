@@ -85,7 +85,7 @@ class SolverPart1
   end
 end
 
-class SolverPart2
+class SolverPart2RecursiveScanner
   def initialize
     @line_solve_cache = Hash.new
   end
@@ -231,21 +231,12 @@ end
 class CountingAutomatonState
   def initialize(name = nil)
     @name = name
-    @count = 0
     @transitions = Hash.new
     @is_goal_state = false
-    @occurrences = Hash.new
-    @min_occurrences = Hash.new
   end
   attr_reader :name, :count
 
-  def add_count(num)
-    @count = @count + num
-  end
-
-  def set_transition(char, next_states, min_occurrence_count = nil)
-    min_occurrence_count ||= 1
-    @min_occurrences[char] = min_occurrence_count
+  def set_transition(char, next_states)
     @transitions[char] = next_states
   end
 
@@ -257,22 +248,8 @@ class CountingAutomatonState
     @is_goal_state
   end
 
-  def consume(char)
-    next_states = @transitions[char] || []
-
-    next_states.each do |s|
-      s.add_count(1) unless self.eql?(s)
-    end
-
-    return next_states
-  end
-
   def consume_many(char, times)
     next_states = @transitions[char] || []
-
-    next_states.each do |s|
-      s.add_count(times) unless self.eql?(s)
-    end
 
     return next_states.collect { |s| [s, times] }
   end
@@ -309,38 +286,23 @@ class SolverPart2CountingAutomata
     padded_condition = condition + "$"
 
     start_state, goal_states = parse_checksum_ints_to_automaton(checksum_ints)
-    # puts "solve_line condition:#{padded_condition} checksum_ints:"
-    # pp checksum_ints
 
-    i = 0
     current_states = [[start_state, 1]]
+    i = 0
 
     while i < padded_condition.length
-      #puts "i:#{i}/#{padded_condition.length}"
-      # print "current_states:"
-      # pp current_states.collect { |s, c| [[s.name, s.count], c] }
-      #puts "consuming:#{padded_condition[i]}"
-
       current_states = consume_many_times(current_states, padded_condition[i])
-
       i = i + 1
     end
 
-    # print "END OF CONDITION current_states:"
-    # pp current_states.collect { |s, c| [[s.name, s.count], c] }
-
-    current_states.select { |s,c| goal_states.include?(s) }.collect { |s,c| c }.sum
+    current_states.select { |state, count| goal_states.include?(state) }.sum { |state, count| count }
   end
 
   def consume_many_times(states, char)
-    res = []
-
-    states.collect { |s, c| s }.uniq.each do |state|
-      times = states.select { |s,c| s == state }.collect { |s,c| c }.sum
-      res = res + state.consume_many(char, times)
-    end
-
-    res
+    return states.collect { |state, count| state }.uniq.collect do |state|
+      times = states.select { |other_state, count| state == other_state }.sum { |state, count| count }
+      state.consume_many(char, times)
+    end.flatten(1)
   end
 
   def parse_checksum_ints_to_automaton(checksum_ints)
@@ -348,25 +310,24 @@ class SolverPart2CountingAutomata
     goal_states = []
 
     init_cas = CountingAutomatonState.new(:init)
-    init_cas.add_count(1)
 
     last_cas = CountingAutomatonState.new(:last_cas)
-    last_cas.is_goal_state!
     last_cas.set_transition("$", [last_cas])
+    last_cas.is_goal_state!
     goal_states << last_cas
 
     index = 0
     cas_collection = []
     while !checksum_ints.empty?
-      if checksum_ints.first == 0
-        end_of_group = CountingAutomatonState.new("state_#{index}_end".to_sym)
-        cas_collection << [:end_of_group, end_of_group]
-        checksum_ints = checksum_ints.drop(1)
-      elsif checksum_ints.first > 0
+      if checksum_ints.first > 0
         current_cas = CountingAutomatonState.new("state_#{index}".to_sym)
         cas_collection << [:in_group, current_cas]
 
         checksum_ints[0] = checksum_ints[0] - 1
+      elsif checksum_ints.first == 0
+        end_of_group = CountingAutomatonState.new("state_#{index}_end".to_sym)
+        cas_collection << [:end_of_group, end_of_group]
+        checksum_ints = checksum_ints.drop(1)
       end
       index = index + 1
     end
