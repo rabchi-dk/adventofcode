@@ -286,7 +286,7 @@ class SolverPart2CountingAutomata
     lines.each.with_index do |line, index|
       condition, checksum_ints = parse_line(line)
       total_sum = total_sum + solve_line(condition, checksum_ints)
-      #puts "Finished line #{index+1}. total_sum: #{total_sum}."
+      puts "Finished line #{index+1}. total_sum: #{total_sum}."
     end
 
     total_sum
@@ -306,34 +306,28 @@ class SolverPart2CountingAutomata
   end
 
   def solve_line(condition, checksum_ints)
-    # TODO: Figure out this padding problem on line6
-    padded_condition = condition
-    if condition.end_with?("???")
-      padded_condition = padded_condition + "."
-    else
-      padded_condition = padded_condition + ".."
-    end
+    padded_condition = condition + "$"
 
-    start_state, goal_states, all_states = parse_checksum_ints_to_automaton(checksum_ints)
-    puts "solve_line condition:#{padded_condition} checksum_ints:"
-    pp checksum_ints
-    puts "all states:#{all_states.collect { |s| s.name }}"
+    start_state, goal_states = parse_checksum_ints_to_automaton(checksum_ints)
+    # puts "solve_line condition:#{padded_condition} checksum_ints:"
+    # pp checksum_ints
 
     i = 0
     current_states = [[start_state, 1]]
 
     while i < padded_condition.length
-      print "i:#{i} current_states:"
-      pp current_states.collect { |s, c| [[s.name, s.count], c] }
-      puts "consuming:#{padded_condition[i]}"
+      #puts "i:#{i}/#{padded_condition.length}"
+      # print "current_states:"
+      # pp current_states.collect { |s, c| [[s.name, s.count], c] }
+      #puts "consuming:#{padded_condition[i]}"
 
       current_states = consume_many_times(current_states, padded_condition[i])
 
       i = i + 1
     end
 
-    print "END OF CONDITION current_states:"
-    pp current_states.collect { |s, c| [[s.name, s.count], c] }
+    # print "END OF CONDITION current_states:"
+    # pp current_states.collect { |s, c| [[s.name, s.count], c] }
 
     current_states.select { |s,c| goal_states.include?(s) }.collect { |s,c| c }.sum
   end
@@ -358,8 +352,7 @@ class SolverPart2CountingAutomata
 
     last_cas = CountingAutomatonState.new(:last_cas)
     last_cas.is_goal_state!
-    last_cas.set_transition("?", [last_cas])
-    last_cas.set_transition(".", [last_cas])
+    last_cas.set_transition("$", [last_cas])
     goal_states << last_cas
 
     index = 0
@@ -380,14 +373,13 @@ class SolverPart2CountingAutomata
 
     cas_collection.each_cons(2) do |(kind, cas), (next_kind, next_cas)|
       if :in_group == kind
+        cas.set_transition("?", [next_cas])
         if :in_group == next_kind
           #cas.set_transition(".", [])
-          cas.set_transition("#", [next_cas])
-          cas.set_transition("?", [next_cas])
+          cas.set_transition("#", [next_cas])          
         elsif :end_of_group == next_kind
           cas.set_transition(".", [next_cas])
           #cas.set_transition("#", [])
-          cas.set_transition("?", [next_cas])
         end
       elsif :end_of_group == kind
         cas.set_transition(".", [cas])
@@ -401,17 +393,22 @@ class SolverPart2CountingAutomata
     if cas_collection.empty?
       init_cas.set_transition(".", [last_cas])
       init_cas.set_transition("?", [last_cas])
+      init_cas.set_transition("$", [last_cas])
     else
       init_cas.set_transition(".", [init_cas])
       init_cas.set_transition("?", [init_cas, cas_collection.first])
       init_cas.set_transition("#", [cas_collection.first])
 
+      last_in_group = cas_collection[-2]
+      last_in_group.set_transition("$", [last_cas])
+
       last_end_of_group = cas_collection.last
-      last_end_of_group.set_transition(".", [last_cas])
+      last_end_of_group.set_transition(".", [last_end_of_group])
       #last_end_of_group.set_transition("#", [])
-      last_end_of_group.set_transition("?", [last_end_of_group, last_cas])
+      last_end_of_group.set_transition("?", [last_end_of_group])
+      last_end_of_group.set_transition("$", [last_cas])
     end
 
-    [init_cas, goal_states, [init_cas] + cas_collection + [last_cas]]
+    [init_cas, goal_states]
   end
 end
