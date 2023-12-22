@@ -20,47 +20,57 @@ class Solver
     visited_positions = []
     visited_positions_count = Hash.new(0)
     visited_positions_count[start_pos] = 1
-    path_cost_to = Hash.new
+    paths_to = Hash.new
     goal_pos = [@max_row, @max_col]
     goal_reached_count = 0
     heuristic = lambda do |pos|
       (pos[0] - goal_pos[0]).abs + (pos[1] - goal_pos[1]).abs
     end
 
-    queue = start_neighbours.collect { |dir, pos, dir_count, cost| [dir, pos, dir_count, cost, [pos], heuristic.call(pos)] }
+    path_cost_to = lambda do |current_direction, current_pos, raw_cost|
+      if paths_to[current_pos].nil?
+        raw_cost
+      else
+        okay_paths = paths_to[current_pos].collect { |path| path.last(3) }.reject { |path| path.collect { |dir, pos| dir }.all?(current_direction) }
+        okay_paths.collect { |path| path.collect { |dir, pos| pos_cost(pos) }.sum }.min || raw_cost
+      end
+    end
+
+    queue = start_neighbours.collect { |dir, pos, dir_count, cost| [dir, pos, dir_count, cost, [[dir, pos]], heuristic.call(pos)] }
 
     while !queue.empty?
-      queue = queue.sort { |a,b| ((path_cost_to[a[1]] || a[3]) + a[5]) <=> ((path_cost_to[b[1]] || b[3]) + b[5]) }.reverse
+      queue = queue.sort { |a,b| (path_cost_to.call(a[0], a[1], a[3]) + a[5]) <=> (path_cost_to.call(a[0], b[1], b[3]) + b[5]) }.reverse
       current_direction, current_pos, current_direction_count, current_path_cost, current_path, current_heuristic = queue.pop
+      current_path_cost = path_cost_to.call(current_direction, current_pos, current_path_cost)
+      pp queue.length
       pp [current_direction, current_pos, current_direction_count, current_path_cost, current_path, current_heuristic]
 
       visited_positions_count[current_pos] = visited_positions_count[current_pos] + 1
-      if path_cost_to[current_pos].nil?
-        path_cost_to[current_pos] = current_path_cost
+      if paths_to[current_pos].nil?
+        paths_to[current_pos] = []
       end
-      # if path_cost_to[current_pos] > current_path_cost
-      #   path_cost_to[current_pos] = current_path_cost
-      # else
-      #   current_path_cost = path_cost_to[current_pos]
-      # end
+      paths_to[current_pos] << current_path.dup
 
       if goal_pos == current_pos
         goal_reached_count = goal_reached_count + 1
-        if goal_reached_count >= 1
-          pp path_cost_to[current_pos]
-          path_with_costs = current_path.collect { |pos| [pos, pos_cost(pos)] }
-          pp path_with_costs.collect { |pos, cost| cost }.sum
-          debugger
-          raise "TODO: Implement this!"
+        if goal_reached_count >= 4
+          path_with_costs = current_path.collect { |dir, pos| [dir, pos, pos_cost(pos)] }
+          pp path_with_costs.collect { |dir, pos, cost| cost }.sum
+          pp paths_to[goal_pos].collect { |path| path.collect { |dir,pos| pos_cost(pos) }.sum }.min
+
+          # print_path(current_path.collect { |dir, pos| pos })
+
+          debugger if paths_to[goal_pos].collect { |path| path.collect { |dir,pos| pos_cost(pos) }.sum }.min <= 102
         end
       end
 
       to_add_to_queue = next_pos(current_pos, current_direction, current_direction_count, current_path_cost)
                           .reject { |dir, pos, dir_count, cost| visited_positions_count[pos] >= 1 }
-                          .collect { |dir, pos, dir_count, cost| [dir, pos, dir_count, cost, (current_path + [pos]), heuristic.call(pos)] }
+                          .collect { |dir, pos, dir_count, cost| [dir, pos, dir_count, cost, (current_path + [[dir, pos]]), heuristic.call(pos)] }
 
-      queue = (queue + to_add_to_queue).uniq { |dir, pos, dir_count, cost, path, heuristic| [pos, cost+heuristic] }
+      queue = (queue + to_add_to_queue)
     end
+    debugger
 
     return nil
   end
@@ -96,9 +106,26 @@ class Solver
   def pos_cost(pos)
     @rows[pos[0]][pos[1]]
   end
+
+  def print_path(path)
+    path_string = @rows.collect.with_index do |row, ri|
+      "#{sprintf("%3i", ri)}: " + row.collect.with_index do |cost, ci|
+        if path.include?([ri, ci])
+          " X#{cost} "
+        else
+          "  #{cost} "
+        end
+      end.join("")
+    end.join("\n")
+    puts "----" + ("----" * @rows[0].length)
+    puts "    " + @rows[0].collect.with_index { |_,i| "  " + sprintf("%2i", i) }.join("")
+    puts
+    puts path_string
+    puts "----" + ("----" * @rows[0].length)
+  end
 end
 
-input_challenge = File.read("input.txt")
+#input_challenge = File.read("input.txt")
 
 input_example = "2413432311323
 3215453535623
@@ -114,6 +141,13 @@ input_example = "2413432311323
 2546548887735
 4322674655533
 "
+
+# input_example = "24134
+# 32154
+# 32552
+# 34465
+# "
+
 
 input_solution = "2>>34^>>>1323
 32v>>>35v5623
